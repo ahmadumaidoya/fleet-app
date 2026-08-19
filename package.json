@@ -1,0 +1,13 @@
+{
+  "name": "fleet-sample-app",
+  "version": "1.0.0",
+  "description": "Simple fleet reporting sample",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "mongoose": "^8.3.1"
+  }
+}
