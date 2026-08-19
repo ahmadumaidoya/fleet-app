@@ -16,7 +16,7 @@ if (mongoURI) {
     .catch(err => console.error('MongoDB connection error:', err));
 }
 
-// Define Fleet Schema with Mileage and Status
+// Define Fleet Schema
 const vehicleSchema = new mongoose.Schema({
   plateNumber: { type: String, required: true },
   driverName: { type: String, required: true },
@@ -27,30 +27,41 @@ const vehicleSchema = new mongoose.Schema({
 
 const Vehicle = mongoose.model('Vehicle', vehicleSchema);
 
-// Main Dashboard Route (Displays stats, form, and vehicle list)
+// Main Dashboard Route
 app.get('/', async (req, res) => {
   try {
     const vehicles = await Vehicle.find().sort({ createdAt: -1 });
     
-    // Calculate simple metrics
     const total = vehicles.length;
     const active = vehicles.filter(v => v.status === 'Active').length;
     const maintenance = vehicles.filter(v => v.status === 'In Maintenance').length;
 
     let vehicleListHtml = vehicles.map(v => `
-      <div style="background: #fff; padding: 15px; margin-bottom: 10px; border-radius: 6px; border-left: 5px solid ${v.status === 'Active' ? '#10b981' : '#f59e0b'}; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-        <div style="text-align: left;">
-          <strong style="font-size: 16px; color: #1e293b;">${v.plateNumber}</strong> - <span style="color: #64748b;">Driver: ${v.driverName}</span><br>
-          <small style="color: #64748b;">Status: <b>${v.status}</b> | Mileage: ${v.mileage ? v.mileage.toLocaleString() + ' km' : 'N/A'} | Added: ${new Date(v.createdAt).toLocaleDateString()}</small>
+      <div class="bg-white p-4 rounded-xl border border-slate-100 shadow-sm hover:shadow-md transition flex items-center justify-between">
+        <div class="flex items-center space-x-4">
+          <div class="w-10 h-10 rounded-lg flex items-center justify-center ${v.status === 'Active' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}">
+            🚚
+          </div>
+          <div>
+            <div class="flex items-center space-x-2">
+              <span class="font-bold text-slate-800 text-base">${v.plateNumber || 'N/A'}</span>
+              <span class="px-2 py-0.5 text-xs font-semibold rounded-full ${v.status === 'Active' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}">${v.status}</span>
+            </div>
+            <p class="text-xs text-slate-500 mt-0.5">Driver: <span class="font-medium text-slate-700">${v.driverName}</span> &bull; Mileage: <span class="font-medium text-slate-700">${v.mileage ? v.mileage.toLocaleString() + ' km' : '0 km'}</span> &bull; Added: ${new Date(v.createdAt).toLocaleDateString()}</p>
+          </div>
         </div>
         <div>
-          <a href="/delete/${v._id}" style="background: #ef4444; color: white; padding: 6px 10px; border-radius: 4px; text-decoration: none; font-size: 12px;">Delete</a>
+          <a href="/delete/${v._id}" class="text-xs bg-rose-50 text-rose-600 hover:bg-rose-100 font-semibold px-3 py-1.5 rounded-lg transition">Remove</a>
         </div>
       </div>
     `).join('');
 
     if (vehicles.length === 0) {
-      vehicleListHtml = '<p style="color: #64748b; text-align: center;">No vehicles registered yet.</p>';
+      vehicleListHtml = `
+        <div class="text-center py-10 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+          <p class="text-slate-400 text-sm">No vehicles registered in the fleet yet.</p>
+        </div>
+      `;
     }
 
     res.send(`
@@ -59,57 +70,86 @@ app.get('/', async (req, res) => {
       <head>
           <meta charset="UTF-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Fleet Status Dashboard</title>
+          <title>Fleet Management Dashboard</title>
           <link rel="icon" href="https://emojicdn.elk.sh/🚚">
-          <style>
-              body { font-family: Arial, sans-serif; background-color: #f4f6f9; color: #333; margin: 0; padding: 30px; }
-              .container { max-width: 700px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-              h1 { color: #1e293b; text-align: center; margin-top: 0; }
-              .stats { display: flex; justify-content: space-around; margin-bottom: 25px; background: #f8fafc; padding: 15px; border-radius: 6px; }
-              .stat-box { text-align: center; }
-              .stat-box span { display: block; font-size: 20px; font-weight: bold; color: #0284c7; }
-              label { display: block; margin-top: 10px; font-weight: bold; color: #475569; text-align: left; }
-              input, select { width: 100%; padding: 10px; margin-top: 5px; margin-bottom: 15px; border: 1px solid #cbd5e1; border-radius: 4px; box-sizing: border-box; }
-              button { width: 100%; background: #0284c7; color: white; border: none; padding: 12px; border-radius: 4px; font-size: 16px; cursor: pointer; font-weight: bold; }
-              button:hover { background: #0369a1; }
-              hr { border: 0; border-top: 1px solid #e2e8f0; margin: 25px 0; }
-          </style>
+          <script src="https://cdn.tailwindcss.com"></script>
       </head>
-      <body>
-          <div class="container">
-              <h1>🚚 Fleet Status Dashboard</h1>
+      <body class="bg-slate-50 text-slate-900 font-sans antialiased min-h-screen py-10 px-4 sm:px-6">
+          <div class="max-w-4xl mx-auto space-y-8">
               
-              <!-- Quick Stats Bar -->
-              <div class="stats">
-                  <div class="stat-box">Total Vehicles <span>${total}</span></div>
-                  <div class="stat-box" style="color: #10b981;">Active <span>${active}</span></div>
-                  <div class="stat-box" style="color: #f59e0b;">Maintenance <span>${maintenance}</span></div>
+              <!-- Header Section -->
+              <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                  <div class="flex items-center space-x-3">
+                      <div class="p-3 bg-blue-600 text-white text-2xl rounded-xl shadow-md">🚚</div>
+                      <div>
+                          <h1 class="text-xl font-bold text-slate-800">Fleet Operations Center</h1>
+                          <p class="text-xs text-slate-500">Real-time vehicle tracking & management dashboard</p>
+                      </div>
+                  </div>
               </div>
 
-              <!-- Registration Form -->
-              <form action="/add" method="POST">
-                  <label>Vehicle Number / Plate:</label>
-                  <input type="text" name="plateNumber" placeholder="e.g., ABJ-402-XX" required>
+              <!-- Metrics Grid -->
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
+                      <p class="text-xs font-medium text-slate-400 uppercase tracking-wider">Total Fleet</p>
+                      <p class="text-3xl font-extrabold text-slate-800 mt-1">${total}</p>
+                  </div>
+                  <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
+                      <p class="text-xs font-medium text-emerald-500 uppercase tracking-wider">Active Units</p>
+                      <p class="text-3xl font-extrabold text-emerald-600 mt-1">${active}</p>
+                  </div>
+                  <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
+                      <p class="text-xs font-medium text-amber-500 uppercase tracking-wider">In Maintenance</p>
+                      <p class="text-3xl font-extrabold text-amber-600 mt-1">${maintenance}</p>
+                  </div>
+              </div>
+
+              <!-- Main Content Layout -->
+              <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
                   
-                  <label>Driver Name:</label>
-                  <input type="text" name="driverName" placeholder="e.g., John Doe" required>
+                  <!-- Registration Form Column -->
+                  <div class="lg:col-span-1 bg-white p-6 rounded-2xl shadow-sm border border-slate-100 h-fit">
+                      <h2 class="text-base font-bold text-slate-800 mb-4 flex items-center">
+                          <span class="mr-2">➕</span> Register Vehicle
+                      </h2>
+                      <form action="/add" method="POST" class="space-y-4">
+                          <div>
+                              <label class="block text-xs font-semibold text-slate-600 mb-1">Plate Number</label>
+                              <input type="text" name="plateNumber" placeholder="e.g., ABJ-402-XX" required class="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                          </div>
+                          <div>
+                              <label class="block text-xs font-semibold text-slate-600 mb-1">Assigned Driver</label>
+                              <input type="text" name="driverName" placeholder="e.g., John Doe" required class="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                          </div>
+                          <div>
+                              <label class="block text-xs font-semibold text-slate-600 mb-1">Mileage (km)</label>
+                              <input type="number" name="mileage" placeholder="e.g., 45000" class="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                          </div>
+                          <div>
+                              <label class="block text-xs font-semibold text-slate-600 mb-1">Status</label>
+                              <select name="status" class="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                  <option value="Active">Active</option>
+                                  <option value="In Maintenance">In Maintenance</option>
+                              </select>
+                          </div>
+                          <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 px-4 rounded-lg text-sm shadow-md transition duration-150">
+                              Save Vehicle
+                          </button>
+                      </form>
+                  </div>
 
-                  <label>Current Mileage (km):</label>
-                  <input type="number" name="mileage" placeholder="e.g., 45000">
+                  <!-- Fleet List Column -->
+                  <div class="lg:col-span-2 space-y-4">
+                      <div class="flex items-center justify-between">
+                          <h2 class="text-base font-bold text-slate-800">Fleet Inventory</h2>
+                          <span class="text-xs text-slate-400">Showing all records</span>
+                      </div>
+                      <div class="space-y-3">
+                          ${vehicleListHtml}
+                      </div>
+                  </div>
 
-                  <label>Status:</label>
-                  <select name="status">
-                      <option value="Active">Active</option>
-                      <option value="In Maintenance">In Maintenance</option>
-                  </select>
-
-                  <button type="submit">Register Vehicle</button>
-              </form>
-
-              <hr>
-
-              <h3 style="text-align: left; color: #1e293b;">Active Fleet Reports</h3>
-              <div>${vehicleListHtml}</div>
+              </div>
           </div>
       </body>
       </html>
